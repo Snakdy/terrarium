@@ -89,8 +89,8 @@ github.com/djcass44/all-your-base v0.4.0 h1:BIjUI0G7HXE0xRHhu43w+ehAS/LsO3k/PcXl
 github.com/djcass44/all-your-base v0.4.0/go.mod h1:MGMh+2aEhbFfx9MatDmohK1eoJlVHjrmdpBW0OTRJFc=
 github.com/djcass44/ci-tools v1.7.3 h1:Sg5MaW+9mEk6XtKAPosBDSrvK5pkH4fvPR3lIU7KW10=
 github.com/djcass44/ci-tools v1.7.3/go.mod h1:lzAvfMpgqvDtfYRrvyRA5gOCiqQuFM3zd5HD3UBrG0c=
-github.com/djcass44/nib/cli v0.0.0-20240316034255-08912f11ce84 h1:qGni6nJahvd1Loihg30v3iHavRBf6M28YZ8MnP0QFTo=
-github.com/djcass44/nib/cli v0.0.0-20240316034255-08912f11ce84/go.mod h1:P1OsBy0JoG8Cn7MPJ3VBQpxKABMVnGjc2pM6NfYmIzc=
+github.com/djcass44/nib/cli v0.0.0-20240316042030-cbd746ee15d4 h1:KFDS1FhtYwcIuVCcX+SwF7dnFd+hD2hknGUANTVkpSI=
+github.com/djcass44/nib/cli v0.0.0-20240316042030-cbd746ee15d4/go.mod h1:P1OsBy0JoG8Cn7MPJ3VBQpxKABMVnGjc2pM6NfYmIzc=
 github.com/docker/cli v25.0.4+incompatible h1:DatRkJ+nrFoYL2HZUzjM5Z5sAmcA5XGp+AW0oEw2+cA=
 github.com/docker/cli v25.0.4+incompatible/go.mod h1:JLrzqnKDaYBop7H2jaqPtU4hHvMKP+vjCwu2uszcLI8=
 github.com/docker/distribution v2.8.3+incompatible h1:AtKxIZ36LoNK51+Z6RpzLpddBirtxJnzDrHLEKxTAYk=

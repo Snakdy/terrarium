@@ -73,9 +73,18 @@ func buildExec(cmd *cobra.Command, args []string) error {
 	if baseImage == "" {
 		baseImage = "python:3.12"
 	}
-	img, err := build.Append(cmd.Context(), baseImage, platform, build.LayerPath{
+	options := build.Options{
+		Author:      build.NibAuthor,
+		ExtraEnv:    []string{"PYTHONUSERBASE=/var/run/pip"},
+		Platform:    platform,
+		EnvDataPath: build.NibDataPath,
+	}
+	img, err := build.Append(cmd.Context(), baseImage, options, build.LayerPath{
 		Path:   workingDir,
 		Chroot: build.DefaultChroot,
+	}, build.LayerPath{
+		Path:   filepath.Join(workingDir, ".pip"),
+		Chroot: "/var/run/pip",
 	})
 	if err != nil {
 		return err

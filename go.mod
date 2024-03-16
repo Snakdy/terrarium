@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/djcass44/all-your-base v0.4.0
-	github.com/djcass44/nib/cli v0.0.0-20240316034255-08912f11ce84
+	github.com/djcass44/nib/cli v0.0.0-20240316042030-cbd746ee15d4
 	github.com/google/go-containerregistry v0.19.1
 	github.com/paketo-buildpacks/packit v1.3.1
 	github.com/spf13/cobra v1.8.0

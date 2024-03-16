@@ -32,8 +32,9 @@ func (*Pip) Install(_ context.Context, bctx executor.BuildContext) error {
 	}
 
 	return executor.Exec(bctx, executor.Options{
-		Command: commandPip,
-		Args:    append([]string{"install", "-r", lockfilePip, "--cache-dir", bctx.CacheDir}, extraArgs...),
+		ExtraEnv: []string{"PYTHONUSERBASE=.pip"},
+		Command:  commandPip,
+		Args:     append([]string{"install", "--user", "--ignore-installed", "-r", lockfilePip, "--cache-dir", bctx.CacheDir}, extraArgs...),
 	})
 }
 
