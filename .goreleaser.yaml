@@ -1,0 +1,26 @@
+project_name: terrarium
+# go build configuration
+builds:
+  - env: [CGO_ENABLED=0]
+    binary: terrarium
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+# verifiable builds
+gomod:
+  proxy: true
+  env:
+    - GOPROXY=https://prism.v2.dcas.dev/api/go,https://proxy.golang.org,direct
+    - GOSUMDB=sum.golang.org
+  mod: mod
+
+# generate archives for the CLI
+archives:
+  - format: tar.gz
+    builds:
+      - cli
+    wrap_in_directory: false
+    files:
+      - LICENCE
