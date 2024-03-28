@@ -7,6 +7,6 @@ const (
 )
 
 const (
-	flagTag       = "tags"
-	flagBuildPath = "build-path"
+	flagTag  = "tags"
+	flagSave = "save"
 )

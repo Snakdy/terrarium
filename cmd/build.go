@@ -23,7 +23,8 @@ var buildCmd = &cobra.Command{
 }
 
 func init() {
-	buildCmd.Flags().StringSliceP(flagTag, "t", []string{"latest"}, "Which tags to use for the produced image instead of the default 'latest' tag")
+	buildCmd.Flags().StringSliceP(flagTag, "t", []string{"latest"}, "tags to push")
+	buildCmd.Flags().String(flagSave, "", "path to save the image as a tar archive")
 }
 
 var buildEngines = []executor.PackageManager{
@@ -32,6 +33,7 @@ var buildEngines = []executor.PackageManager{
 
 func buildExec(cmd *cobra.Command, args []string) error {
 	workingDir := args[0]
+	localPath, _ := cmd.Flags().GetString(flagSave)
 	cacheDir := os.Getenv(EnvCache)
 	if cacheDir == "" {
 		cacheDir = filepath.Join(os.TempDir(), ".terrarium-cache")
@@ -88,6 +90,9 @@ func buildExec(cmd *cobra.Command, args []string) error {
 	})
 	if err != nil {
 		return err
+	}
+	if localPath != "" {
+		return containerutil.Save(cmd.Context(), img, "image", localPath)
 	}
 	tags, _ := cmd.Flags().GetStringSlice(flagTag)
 	for _, tag := range tags {
