@@ -2,13 +2,11 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/djcass44/all-your-base/pkg/containerutil"
-	"github.com/djcass44/nib/cli/pkg/build"
-	"github.com/djcass44/nib/cli/pkg/executor"
-	"github.com/djcass44/terrarium/internal/packager"
+	"github.com/Snakdy/container-build-engine/pkg/builder"
+	"github.com/Snakdy/container-build-engine/pkg/containers"
+	"github.com/Snakdy/container-build-engine/pkg/pipelines"
+	"github.com/Snakdy/terrarium/internal/packager"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/paketo-buildpacks/packit/chronos"
-	"github.com/paketo-buildpacks/packit/scribe"
 	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"
@@ -25,10 +23,10 @@ var buildCmd = &cobra.Command{
 func init() {
 	buildCmd.Flags().StringSliceP(flagTag, "t", []string{"latest"}, "tags to push")
 	buildCmd.Flags().String(flagSave, "", "path to save the image as a tar archive")
-}
+	buildCmd.Flags().String(flagEntrypoint, "", "path to the Python file that will be executed")
 
-var buildEngines = []executor.PackageManager{
-	&packager.Pip{},
+	_ = buildCmd.MarkFlagRequired(flagEntrypoint)
+	_ = buildCmd.MarkFlagFilename(flagEntrypoint, ".py")
 }
 
 func buildExec(cmd *cobra.Command, args []string) error {
@@ -38,31 +36,57 @@ func buildExec(cmd *cobra.Command, args []string) error {
 	if cacheDir == "" {
 		cacheDir = filepath.Join(os.TempDir(), ".terrarium-cache")
 	}
+	entrypoint, _ := cmd.Flags().GetString(flagEntrypoint)
 
-	bctx := executor.BuildContext{
-		WorkingDir: workingDir,
-		CacheDir:   cacheDir,
-		Clock:      chronos.DefaultClock,
-		Logger:     scribe.NewLogger(os.Stdout),
-	}
-	// 1. install dependencies
-	pkg := buildEngines[0]
-	for _, engine := range buildEngines {
-		ok := engine.Detect(cmd.Context(), bctx)
-		if ok {
-			pkg = engine
-			break
-		}
-	}
-	err := pkg.Install(cmd.Context(), bctx)
-	if err != nil {
-		return err
-	}
+	installDir := filepath.Join(os.TempDir(), ".pip")
+	pkgDir := filepath.Join(installDir, "packages")
 
-	// 2. build
-	err = pkg.Build(cmd.Context(), bctx)
-	if err != nil {
-		return err
+	statements := []pipelines.OrderedPipelineStatement{
+		{
+			ID: "set-build-env",
+			Options: map[string]any{
+				"PYTHONUSERBASE": installDir,
+				"PATH":           "${PATH}:" + filepath.Join(installDir, "bin"),
+			},
+			Statement: &pipelines.Env{},
+		},
+		{
+			ID: packager.StatementPipInstall,
+			Options: map[string]any{
+				"cache-dir":   cacheDir,
+				"install-dir": pkgDir,
+			},
+			Statement: &packager.PipInstall{},
+			DependsOn: []string{"set-build-env"},
+		},
+		{
+			ID: "copy-python-packages",
+			Options: map[string]any{
+				"src": installDir,
+				"dst": "/var/run/pip",
+			},
+			Statement: &pipelines.Dir{},
+			DependsOn: []string{packager.StatementPipInstall},
+		},
+		{
+			ID: "set-run-env",
+			Options: map[string]any{
+				"PYTHONUSERBASE": "/var/run/pip",
+				"PATH":           "${PATH}:/var/run/pip/bin",
+				"PYTHONPATH":     "/var/run/pip/packages:${PYTHONPATH}",
+			},
+			Statement: &pipelines.Env{},
+			DependsOn: []string{"copy-python-packages"},
+		},
+		{
+			ID: "copy-working-dir",
+			Options: map[string]any{
+				"src": workingDir,
+				"dst": filepath.Join("${HOME}", "app"),
+			},
+			Statement: &pipelines.Dir{},
+			DependsOn: []string{"set-run-env", "copy-python-packages"},
+		},
 	}
 
 	platform, err := v1.ParsePlatform("linux/amd64")
@@ -75,28 +99,30 @@ func buildExec(cmd *cobra.Command, args []string) error {
 	if baseImage == "" {
 		baseImage = "python:3.12"
 	}
-	options := build.Options{
-		Author:      build.NibAuthor,
-		ExtraEnv:    []string{"PYTHONUSERBASE=/var/run/pip"},
-		Platform:    platform,
-		EnvDataPath: build.NibDataPath,
-	}
-	img, err := build.Append(cmd.Context(), baseImage, options, build.LayerPath{
-		Path:   workingDir,
-		Chroot: build.DefaultChroot,
-	}, build.LayerPath{
-		Path:   filepath.Join(workingDir, ".pip"),
-		Chroot: "/var/run/pip",
+
+	b, err := builder.NewBuilder(cmd.Context(), baseImage, statements, builder.Options{
+		WorkingDir:      workingDir,
+		Entrypoint:      []string{"python3"},
+		Command:         []string{filepath.Join("${HOME}", "app", entrypoint)},
+		ForceEntrypoint: true,
+		Metadata: builder.MetadataOptions{
+			CreatedBy: "terrarium",
+		},
 	})
 	if err != nil {
 		return err
 	}
+	img, err := b.Build(cmd.Context(), platform)
+	if err != nil {
+		return err
+	}
+
 	if localPath != "" {
-		return containerutil.Save(cmd.Context(), img, "image", localPath)
+		return containers.Save(cmd.Context(), img, "image", localPath)
 	}
 	tags, _ := cmd.Flags().GetStringSlice(flagTag)
 	for _, tag := range tags {
-		if err := containerutil.Push(cmd.Context(), img, fmt.Sprintf("%s:%s", os.Getenv(EnvDockerRepo), tag)); err != nil {
+		if err := containers.Push(cmd.Context(), img, fmt.Sprintf("%s:%s", os.Getenv(EnvDockerRepo), tag)); err != nil {
 			return err
 		}
 	}

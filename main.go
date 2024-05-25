@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/djcass44/terrarium/cmd"
+	"github.com/Snakdy/terrarium/cmd"
 	"time"
 )
 

@@ -7,6 +7,7 @@ const (
 )
 
 const (
-	flagTag  = "tags"
-	flagSave = "save"
+	flagTag        = "tags"
+	flagSave       = "save"
+	flagEntrypoint = "entrypoint"
 )
