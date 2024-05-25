@@ -24,6 +24,7 @@ func init() {
 	buildCmd.Flags().StringSliceP(flagTag, "t", []string{"latest"}, "tags to push")
 	buildCmd.Flags().String(flagSave, "", "path to save the image as a tar archive")
 	buildCmd.Flags().String(flagEntrypoint, "", "path to the Python file that will be executed")
+	buildCmd.Flags().String(flagPlatform, "linux/amd64", "build platform")
 
 	_ = buildCmd.MarkFlagRequired(flagEntrypoint)
 	_ = buildCmd.MarkFlagFilename(flagEntrypoint, ".py")
@@ -38,7 +39,17 @@ func buildExec(cmd *cobra.Command, args []string) error {
 	}
 	entrypoint, _ := cmd.Flags().GetString(flagEntrypoint)
 
-	installDir := filepath.Join(os.TempDir(), ".pip")
+	platform, _ := cmd.Flags().GetString(flagPlatform)
+	imgPlatform, err := v1.ParsePlatform(platform)
+	if err != nil {
+		return err
+	}
+
+	installDir, err := os.MkdirTemp("", "pip-install-*")
+	if err != nil {
+		return err
+	}
+
 	pkgDir := filepath.Join(installDir, "packages")
 
 	statements := []pipelines.OrderedPipelineStatement{
@@ -89,11 +100,6 @@ func buildExec(cmd *cobra.Command, args []string) error {
 		},
 	}
 
-	platform, err := v1.ParsePlatform("linux/amd64")
-	if err != nil {
-		return err
-	}
-
 	// 4. add static files to base image
 	baseImage := os.Getenv(EnvBaseImage)
 	if baseImage == "" {
@@ -112,7 +118,7 @@ func buildExec(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	img, err := b.Build(cmd.Context(), platform)
+	img, err := b.Build(cmd.Context(), imgPlatform)
 	if err != nil {
 		return err
 	}

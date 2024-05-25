@@ -10,4 +10,5 @@ const (
 	flagTag        = "tags"
 	flagSave       = "save"
 	flagEntrypoint = "entrypoint"
+	flagPlatform   = "platform"
 )
