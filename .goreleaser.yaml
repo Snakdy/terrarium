@@ -10,5 +10,5 @@ archives:
   - format: tar.gz
     wrap_in_directory: false
     files:
-      - LICENSE
+      - LICENCE
       - README.md
