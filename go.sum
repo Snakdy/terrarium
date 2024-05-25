@@ -221,8 +221,8 @@ github.com/Masterminds/semver/v3 v3.1.1/go.mod h1:VPu/7SZ7ePZ3QOrcuXROw5FAcLl4a0
 github.com/Masterminds/semver/v3 v3.2.1 h1:RN9w6+7QoMeJVGyfmbcgs28Br8cvmnucEXnY0rYXWg0=
 github.com/Masterminds/semver/v3 v3.2.1/go.mod h1:qvl/7zhW3nngYb5+80sSMF+FG2BjYrf8m9wsX0PNOMQ=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
-github.com/Snakdy/container-build-engine v0.1.5-0.20240525102414-b5d4968cde2c h1:8BDO8vK4JUMo2+nspYRPK0fnl83dOHuv7InvABpHUWM=
-github.com/Snakdy/container-build-engine v0.1.5-0.20240525102414-b5d4968cde2c/go.mod h1:QezwBvlz29VubLhdv5KYOjeTVsW6+/1jw4N7fTArb4c=
+github.com/Snakdy/container-build-engine v0.1.5 h1:4Iep1SdLlFC654XYUpnZR4hmvBV6oCFbqCI8zbebHSo=
+github.com/Snakdy/container-build-engine v0.1.5/go.mod h1:QezwBvlz29VubLhdv5KYOjeTVsW6+/1jw4N7fTArb4c=
 github.com/VividCortex/ewma v1.1.1/go.mod h1:2Tkkvm3sRDVXaiyucHiACn4cqf7DpdyLvmxzcbUokwA=
 github.com/VividCortex/ewma v1.2.0 h1:f58SaIzcDXrSy3kWaHNvuJgJ3Nmz59Zji6XoJR/q1ow=
 github.com/VividCortex/ewma v1.2.0/go.mod h1:nz4BbCtbLyFDeC9SUHbtcT5644juEuWfUAUnGx7j5l4=

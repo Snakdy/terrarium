@@ -5,7 +5,7 @@ go 1.22.0
 toolchain go1.22.1
 
 require (
-	github.com/Snakdy/container-build-engine v0.1.5-0.20240525102414-b5d4968cde2c
+	github.com/Snakdy/container-build-engine v0.1.5
 	github.com/djcass44/go-utils/logging v0.2.5
 	github.com/djcass44/nib/cli v0.0.0-20240316042030-cbd746ee15d4
 	github.com/go-logr/logr v1.4.2
