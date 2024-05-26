@@ -10,7 +10,6 @@ import (
 	"github.com/paketo-buildpacks/packit/chronos"
 	"github.com/paketo-buildpacks/packit/scribe"
 	"os"
-	"path/filepath"
 )
 
 const StatementPoetryInstall = "poetry-export"
@@ -48,7 +47,7 @@ func (p *PoetryExport) Run(ctx *pipelines.BuildContext) error {
 
 	return executor.Exec(buildContext, executor.Options{
 		Command:  commandSh,
-		Args:     []string{"-c", "poetry export --without-urls --format requirements.txt > " + filepath.Join(ctx.WorkingDirectory, "requirements.txt")},
+		Args:     []string{"-c", "poetry export --without-urls --format requirements.txt > requirements.txt"},
 		ExtraEnv: ctx.ConfigFile.Config.Env,
 	})
 }
