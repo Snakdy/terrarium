@@ -52,23 +52,41 @@ func buildExec(cmd *cobra.Command, args []string) error {
 
 	pkgDir := filepath.Join(installDir, "packages")
 
+	installStatement, err := packager.Detect(cmd.Context(), workingDir)
+	if err != nil {
+		return err
+	}
+
 	statements := []pipelines.OrderedPipelineStatement{
 		{
 			ID: "set-build-env",
 			Options: map[string]any{
 				"PYTHONUSERBASE": installDir,
-				"PATH":           "${PATH}:" + filepath.Join(installDir, "bin"),
+				"PATH":           "${PATH}:" + filepath.Join(installDir, "bin") + ":" + os.Getenv("PATH"),
+				"POETRY_VIRTUALENVS_OPTIONS_NO_SETUPTOOLS": "true",
+				"POETRY_VIRTUALENVS_OPTIONS_NO_PIP":        "true",
+				"POETRY_VIRTUALENVS_OPTIONS_ALWAYS_COPY":   "true",
+				"POETRY_VIRTUALENVS_CREATE":                "false",
+				"POETRY_CACHE_DIR":                         cacheDir,
 			},
 			Statement: &pipelines.Env{},
 		},
 		{
-			ID: packager.StatementPipInstall,
+			ID: "poetry-export",
+			Options: map[string]any{
+				"cache-dir": cacheDir,
+			},
+			Statement: &packager.PoetryExport{},
+			DependsOn: []string{"set-build-env"},
+		},
+		{
+			ID: "pkg-install",
 			Options: map[string]any{
 				"cache-dir":   cacheDir,
 				"install-dir": pkgDir,
 			},
-			Statement: &packager.PipInstall{},
-			DependsOn: []string{"set-build-env"},
+			Statement: installStatement,
+			DependsOn: []string{"set-build-env", "poetry-export"},
 		},
 		{
 			ID: "copy-python-packages",
@@ -77,7 +95,7 @@ func buildExec(cmd *cobra.Command, args []string) error {
 				"dst": "/var/run/pip",
 			},
 			Statement: &pipelines.Dir{},
-			DependsOn: []string{packager.StatementPipInstall},
+			DependsOn: []string{"pkg-install"},
 		},
 		{
 			ID: "set-run-env",

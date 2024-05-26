@@ -10,28 +10,33 @@ import (
 	"github.com/paketo-buildpacks/packit/chronos"
 	"github.com/paketo-buildpacks/packit/scribe"
 	"os"
+	"path/filepath"
 )
 
-const StatementPipInstall = "pip-install"
+const StatementPoetryInstall = "poetry-export"
 
-const commandPip = "pip"
-const lockfilePip = "requirements.txt"
+const commandSh = "sh"
+const lockfilePoetry = "poetry.lock"
 
-type PipInstall struct {
+type PoetryExport struct {
 	options cbev1.Options
 }
 
-func (p *PipInstall) Run(ctx *pipelines.BuildContext) error {
+func (p *PoetryExport) Run(ctx *pipelines.BuildContext) error {
 	log := logr.FromContextOrDiscard(ctx.Context)
-	log.V(7).Info("running statement pip install", "options", p.options)
+	log.V(7).Info("running statement poetry install", "options", p.options)
 
 	cacheDir, err := cbev1.GetRequired[string](p.options, "cache-dir")
 	if err != nil {
 		return err
 	}
-	installDir, err := cbev1.GetRequired[string](p.options, "install-dir")
+
+	ok, err := p.Detect(ctx.Context, ctx.WorkingDirectory)
 	if err != nil {
 		return err
+	}
+	if !ok {
+		return nil
 	}
 
 	buildContext := executor.BuildContext{
@@ -42,23 +47,23 @@ func (p *PipInstall) Run(ctx *pipelines.BuildContext) error {
 	}
 
 	return executor.Exec(buildContext, executor.Options{
-		Command:  commandPip,
-		Args:     []string{"install", "--ignore-installed", "-r", lockfilePip, "--cache-dir", cacheDir, "--target", installDir},
+		Command:  commandSh,
+		Args:     []string{"-c", "poetry export --without-urls --format requirements.txt > " + filepath.Join(ctx.WorkingDirectory, "requirements.txt")},
 		ExtraEnv: ctx.ConfigFile.Config.Env,
 	})
 }
 
-func (p *PipInstall) Name() string {
-	return StatementPipInstall
+func (p *PoetryExport) Name() string {
+	return StatementPoetryInstall
 }
 
-func (p *PipInstall) SetOptions(options cbev1.Options) {
+func (p *PoetryExport) SetOptions(options cbev1.Options) {
 	if p.options == nil {
 		p.options = map[string]any{}
 	}
 	utils.CopyMap(options, p.options)
 }
 
-func (p *PipInstall) Detect(ctx context.Context, dir string) (bool, error) {
-	return detectFile(ctx, dir, lockfilePip)
+func (p *PoetryExport) Detect(ctx context.Context, dir string) (bool, error) {
+	return detectFile(ctx, dir, lockfilePoetry)
 }
