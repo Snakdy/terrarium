@@ -7,8 +7,9 @@ const (
 )
 
 const (
-	flagTag        = "tags"
-	flagSave       = "save"
-	flagEntrypoint = "entrypoint"
-	flagPlatform   = "platform"
+	flagTag           = "tags"
+	flagSave          = "save"
+	flagEntrypoint    = "entrypoint"
+	flagPlatform      = "platform"
+	flagInstallPoetry = "install-poetry"
 )

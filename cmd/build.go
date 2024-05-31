@@ -25,6 +25,7 @@ func init() {
 	buildCmd.Flags().String(flagSave, "", "path to save the image as a tar archive")
 	buildCmd.Flags().String(flagEntrypoint, "", "path to the Python file that will be executed")
 	buildCmd.Flags().String(flagPlatform, "linux/amd64", "build platform")
+	buildCmd.Flags().Bool(flagInstallPoetry, false, "whether to 'pip install poetry' before trying to use Poetry.")
 
 	_ = buildCmd.MarkFlagRequired(flagEntrypoint)
 	_ = buildCmd.MarkFlagFilename(flagEntrypoint, ".py")
@@ -38,6 +39,7 @@ func buildExec(cmd *cobra.Command, args []string) error {
 		cacheDir = filepath.Join(os.TempDir(), ".terrarium-cache")
 	}
 	entrypoint, _ := cmd.Flags().GetString(flagEntrypoint)
+	installPoetry, _ := cmd.Flags().GetBool(flagInstallPoetry)
 
 	platform, _ := cmd.Flags().GetString(flagPlatform)
 	imgPlatform, err := v1.ParsePlatform(platform)
@@ -116,6 +118,23 @@ func buildExec(cmd *cobra.Command, args []string) error {
 			Statement: &pipelines.Dir{},
 			DependsOn: []string{"set-run-env", "copy-python-packages"},
 		},
+	}
+
+	if installPoetry {
+		statements = append(statements, pipelines.OrderedPipelineStatement{
+			ID: "install-poetry",
+			Options: map[string]any{
+				"command": "pip",
+				"args":    []string{"install", "poetry"},
+			},
+			Statement: &pipelines.Script{},
+			DependsOn: []string{"set-build-env"},
+		})
+		for i := range statements {
+			if statements[i].ID == "poetry-export" {
+				statements[i].DependsOn = append(statements[i].DependsOn, "install-poetry")
+			}
+		}
 	}
 
 	// 4. add static files to base image
