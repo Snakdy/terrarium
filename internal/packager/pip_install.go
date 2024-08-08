@@ -5,11 +5,9 @@ import (
 	cbev1 "github.com/Snakdy/container-build-engine/pkg/api/v1"
 	"github.com/Snakdy/container-build-engine/pkg/pipelines"
 	"github.com/Snakdy/container-build-engine/pkg/pipelines/utils"
-	"github.com/djcass44/nib/cli/pkg/executor"
 	"github.com/go-logr/logr"
-	"github.com/paketo-buildpacks/packit/chronos"
-	"github.com/paketo-buildpacks/packit/scribe"
 	"os"
+	"os/exec"
 )
 
 const StatementPipInstall = "pip-install"
@@ -21,31 +19,29 @@ type PipInstall struct {
 	options cbev1.Options
 }
 
-func (p *PipInstall) Run(ctx *pipelines.BuildContext) error {
+func (p *PipInstall) Run(ctx *pipelines.BuildContext, _ ...cbev1.Options) (cbev1.Options, error) {
 	log := logr.FromContextOrDiscard(ctx.Context)
 	log.V(7).Info("running statement pip install", "options", p.options)
 
 	cacheDir, err := cbev1.GetRequired[string](p.options, "cache-dir")
 	if err != nil {
-		return err
+		return cbev1.Options{}, err
 	}
 	installDir, err := cbev1.GetRequired[string](p.options, "install-dir")
 	if err != nil {
-		return err
+		return cbev1.Options{}, err
 	}
 
-	buildContext := executor.BuildContext{
-		WorkingDir: ctx.WorkingDirectory,
-		CacheDir:   cacheDir,
-		Clock:      chronos.DefaultClock,
-		Logger:     scribe.NewLogger(os.Stdout),
+	cmd := exec.CommandContext(ctx.Context, commandSh, "-c", commandPip+" install --ignore-installed -r "+lockfilePip+" --cache-dir "+cacheDir+" --target "+installDir)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Dir = ctx.WorkingDirectory
+	err = cmd.Run()
+	if err != nil {
+		log.Error(err, "script execution failed")
+		return cbev1.Options{}, err
 	}
-
-	return executor.Exec(buildContext, executor.Options{
-		Command:  commandPip,
-		Args:     []string{"install", "--ignore-installed", "-r", lockfilePip, "--cache-dir", cacheDir, "--target", installDir},
-		ExtraEnv: ctx.ConfigFile.Config.Env,
-	})
+	return cbev1.Options{}, nil
 }
 
 func (p *PipInstall) Name() string {

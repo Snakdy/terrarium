@@ -5,11 +5,9 @@ import (
 	cbev1 "github.com/Snakdy/container-build-engine/pkg/api/v1"
 	"github.com/Snakdy/container-build-engine/pkg/pipelines"
 	"github.com/Snakdy/container-build-engine/pkg/pipelines/utils"
-	"github.com/djcass44/nib/cli/pkg/executor"
 	"github.com/go-logr/logr"
-	"github.com/paketo-buildpacks/packit/chronos"
-	"github.com/paketo-buildpacks/packit/scribe"
 	"os"
+	"os/exec"
 )
 
 const StatementPoetryInstall = "poetry-export"
@@ -21,35 +19,28 @@ type PoetryExport struct {
 	options cbev1.Options
 }
 
-func (p *PoetryExport) Run(ctx *pipelines.BuildContext) error {
+func (p *PoetryExport) Run(ctx *pipelines.BuildContext, _ ...cbev1.Options) (cbev1.Options, error) {
 	log := logr.FromContextOrDiscard(ctx.Context)
 	log.V(7).Info("running statement poetry install", "options", p.options)
 
-	cacheDir, err := cbev1.GetRequired[string](p.options, "cache-dir")
-	if err != nil {
-		return err
-	}
-
 	ok, err := p.Detect(ctx.Context, ctx.WorkingDirectory)
 	if err != nil {
-		return err
+		return cbev1.Options{}, err
 	}
 	if !ok {
-		return nil
+		return cbev1.Options{}, nil
 	}
 
-	buildContext := executor.BuildContext{
-		WorkingDir: ctx.WorkingDirectory,
-		CacheDir:   cacheDir,
-		Clock:      chronos.DefaultClock,
-		Logger:     scribe.NewLogger(os.Stdout),
+	cmd := exec.CommandContext(ctx.Context, commandSh, "-c", "echo $PATH && poetry export --without-urls --format requirements.txt > requirements.txt")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Dir = ctx.WorkingDirectory
+	err = cmd.Run()
+	if err != nil {
+		log.Error(err, "script execution failed")
+		return cbev1.Options{}, err
 	}
-
-	return executor.Exec(buildContext, executor.Options{
-		Command:  commandSh,
-		Args:     []string{"-c", "poetry export --without-urls --format requirements.txt > requirements.txt"},
-		ExtraEnv: ctx.ConfigFile.Config.Env,
-	})
+	return cbev1.Options{}, nil
 }
 
 func (p *PoetryExport) Name() string {
