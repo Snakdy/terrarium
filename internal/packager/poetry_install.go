@@ -31,7 +31,7 @@ func (p *PoetryExport) Run(ctx *pipelines.BuildContext, _ ...cbev1.Options) (cbe
 		return cbev1.Options{}, nil
 	}
 
-	cmd := exec.CommandContext(ctx.Context, commandSh, "-c", "echo $PATH && poetry export --without-urls --format requirements.txt > requirements.txt")
+	cmd := exec.CommandContext(ctx.Context, commandSh, "-c", "poetry export --without-urls --format requirements.txt > requirements.txt")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Dir = ctx.WorkingDirectory

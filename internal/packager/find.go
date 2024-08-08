@@ -31,7 +31,7 @@ func Detect(ctx context.Context, dir string) (pipelines.PipelineStatement, error
 
 		return statement, nil
 	}
-	log.Info("could not detect build tool - defaulting to pip")
+	log.Info("could not detect an external build tool - defaulting to pip")
 	return buildTools[0].(pipelines.PipelineStatement), nil
 }
 
