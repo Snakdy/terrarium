@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"chainguard.dev/apko/pkg/apk/fs"
 	"fmt"
 	"github.com/Snakdy/container-build-engine/pkg/builder"
 	"github.com/Snakdy/container-build-engine/pkg/containers"
@@ -26,6 +27,7 @@ func init() {
 	buildCmd.Flags().String(flagEntrypoint, "", "path to the Python file that will be executed")
 	buildCmd.Flags().String(flagPlatform, "linux/amd64", "build platform")
 	buildCmd.Flags().Bool(flagInstallPoetry, false, "whether to 'pip install poetry' before trying to use Poetry.")
+	buildCmd.Flags().String(flagPoetryVersion, "", "if set, controls the version of Poetry installed")
 
 	_ = buildCmd.MarkFlagRequired(flagEntrypoint)
 	_ = buildCmd.MarkFlagFilename(flagEntrypoint, ".py")
@@ -40,6 +42,7 @@ func buildExec(cmd *cobra.Command, args []string) error {
 	}
 	entrypoint, _ := cmd.Flags().GetString(flagEntrypoint)
 	installPoetry, _ := cmd.Flags().GetBool(flagInstallPoetry)
+	poetryVersion, _ := cmd.Flags().GetString(flagPoetryVersion)
 
 	platform, _ := cmd.Flags().GetString(flagPlatform)
 	imgPlatform, err := v1.ParsePlatform(platform)
@@ -121,11 +124,17 @@ func buildExec(cmd *cobra.Command, args []string) error {
 	}
 
 	if installPoetry {
+		poetryInstallArgs := []string{"install"}
+		if poetryVersion != "" {
+			poetryInstallArgs = append(poetryInstallArgs, "poetry==", poetryVersion)
+		} else {
+			poetryInstallArgs = append(poetryInstallArgs, "poetry<2.0.0")
+		}
 		statements = append(statements, pipelines.OrderedPipelineStatement{
 			ID: "install-poetry",
 			Options: map[string]any{
 				"command": "pip",
-				"args":    []string{"install", "poetry"},
+				"args":    poetryInstallArgs,
 			},
 			Statement: &pipelines.Script{},
 			DependsOn: []string{"set-build-env"},
@@ -151,6 +160,7 @@ func buildExec(cmd *cobra.Command, args []string) error {
 		Metadata: builder.MetadataOptions{
 			CreatedBy: "terrarium",
 		},
+		FS: fs.NewMemFS(),
 	})
 	if err != nil {
 		return err
