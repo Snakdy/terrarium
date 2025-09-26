@@ -30,5 +30,5 @@ build-uv:
 		-v ./bin:/app \
 		-v ./samples:/samples \
 		--entrypoint /bin/bash harbor.dcas.dev/docker.io/library/python:3.12 \
-		-c "/app/terrarium build /samples/sample-uv --install-uv --entrypoint main.py --save /app/test.tar --v=10"
+		-c "/app/terrarium build /samples/sample-uv --install-tool=uv --entrypoint main.py --save /app/test.tar --v=10"
 	docker load < ./bin/test.tar

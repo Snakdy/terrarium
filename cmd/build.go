@@ -10,6 +10,8 @@ import (
 	"github.com/Snakdy/container-build-engine/pkg/containers"
 	"github.com/Snakdy/container-build-engine/pkg/pipelines"
 	"github.com/Snakdy/terrarium/internal/packager"
+	"github.com/Snakdy/terrarium/internal/pipinstall"
+	"github.com/go-logr/logr"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/spf13/cobra"
 )
@@ -28,17 +30,17 @@ func init() {
 	buildCmd.Flags().String(flagEntrypoint, "", "path to the Python file that will be executed")
 	buildCmd.Flags().String(flagPlatform, "linux/amd64", "build platform")
 
-	buildCmd.Flags().Bool(flagInstallPoetry, false, "whether to 'pip install poetry' before trying to use Poetry.")
+	buildCmd.Flags().Bool(flagInstallPoetry, false, "(deprecated) whether to 'pip install poetry' before trying to use Poetry.")
 	buildCmd.Flags().String(flagPoetryVersion, "", "if set, controls the version of Poetry installed")
 
-	buildCmd.Flags().Bool(flagInstallUV, false, "whether to 'pip install uv' before trying to use UV.")
-	buildCmd.Flags().String(flagUVVersion, "", "if set, controls the version of UV")
+	buildCmd.Flags().String(flagInstallTool, "", "name of the build tool to install. Can include a version (e.g., 'poetry<2.0.0')")
 
 	_ = buildCmd.MarkFlagRequired(flagEntrypoint)
 	_ = buildCmd.MarkFlagFilename(flagEntrypoint, ".py")
 }
 
 func buildExec(cmd *cobra.Command, args []string) error {
+	log := logr.FromContextOrDiscard(cmd.Context())
 	workingDir := args[0]
 	localPath, _ := cmd.Flags().GetString(flagSave)
 	cacheDir := os.Getenv(EnvCache)
@@ -47,9 +49,20 @@ func buildExec(cmd *cobra.Command, args []string) error {
 	}
 	entrypoint, _ := cmd.Flags().GetString(flagEntrypoint)
 	installPoetry, _ := cmd.Flags().GetBool(flagInstallPoetry)
-	installUV, _ := cmd.Flags().GetBool(flagInstallUV)
 	poetryVersion, _ := cmd.Flags().GetString(flagPoetryVersion)
-	uvVersion, _ := cmd.Flags().GetString(flagUVVersion)
+
+	installTool, _ := cmd.Flags().GetString(flagInstallTool)
+	// if the --install-poetry command has been
+	// set, use that instead
+	if installPoetry {
+		log.Info("the '--install-poetry' flag is deprecated, please use '--install-tool=poetry' instead")
+		installTool = "poetry==" + poetryVersion
+		if poetryVersion == "" {
+			installTool = "poetry<2.0.0"
+		} else {
+			log.Info("the '--poetry-version' flag is deprecated, please use '--install-tool=poetry<2.0.0' instead")
+		}
+	}
 
 	platform, _ := cmd.Flags().GetString(flagPlatform)
 	imgPlatform, err := v1.ParsePlatform(platform)
@@ -80,9 +93,17 @@ func buildExec(cmd *cobra.Command, args []string) error {
 				"POETRY_VIRTUALENVS_OPTIONS_ALWAYS_COPY":   "true",
 				"POETRY_VIRTUALENVS_CREATE":                "false",
 				"POETRY_CACHE_DIR":                         cacheDir,
-				"UV_PROJECT_ENVIRONMENT":                   "",
 			},
 			Statement: &pipelines.Env{},
+		},
+		{
+			ID: pipinstall.Name,
+			Options: map[string]any{
+				"enabled": installTool != "",
+				"name":    installTool,
+			},
+			Statement: &pipinstall.Statement{},
+			DependsOn: []string{"set-build-env"},
 		},
 		{
 			ID: packager.StatementPoetryInstall,
@@ -90,7 +111,7 @@ func buildExec(cmd *cobra.Command, args []string) error {
 				"cache-dir": cacheDir,
 			},
 			Statement: &packager.PoetryExport{},
-			DependsOn: []string{"set-build-env"},
+			DependsOn: []string{"set-build-env", pipinstall.Name},
 		},
 		{
 			ID: packager.StatementUVSync,
@@ -98,7 +119,7 @@ func buildExec(cmd *cobra.Command, args []string) error {
 				"cache-dir": cacheDir,
 			},
 			Statement: &packager.UVSync{},
-			DependsOn: []string{"set-build-env"},
+			DependsOn: []string{"set-build-env", pipinstall.Name},
 		},
 		{
 			ID: "pkg-install",
@@ -137,51 +158,6 @@ func buildExec(cmd *cobra.Command, args []string) error {
 			Statement: &pipelines.Dir{},
 			DependsOn: []string{"set-run-env", "copy-python-packages"},
 		},
-	}
-
-	if installUV {
-		uvInstallArgs := []string{"install"}
-		if uvVersion != "" {
-			uvInstallArgs = append(uvInstallArgs, "uv==", uvVersion)
-		} else {
-			uvInstallArgs = append(uvInstallArgs, "uv")
-		}
-		statements = append(statements, pipelines.OrderedPipelineStatement{
-			ID: "install-uv",
-			Options: map[string]any{
-				"command": "pip",
-				"args":    uvInstallArgs,
-			},
-			Statement: &pipelines.Script{},
-			DependsOn: []string{"set-build-env"},
-		})
-		for i := range statements {
-			if statements[i].ID == packager.StatementUVSync {
-				statements[i].DependsOn = append(statements[i].DependsOn, "install-uv")
-			}
-		}
-	}
-	if installPoetry {
-		poetryInstallArgs := []string{"install"}
-		if poetryVersion != "" {
-			poetryInstallArgs = append(poetryInstallArgs, "poetry==", poetryVersion)
-		} else {
-			poetryInstallArgs = append(poetryInstallArgs, "poetry<2.0.0")
-		}
-		statements = append(statements, pipelines.OrderedPipelineStatement{
-			ID: "install-poetry",
-			Options: map[string]any{
-				"command": "pip",
-				"args":    poetryInstallArgs,
-			},
-			Statement: &pipelines.Script{},
-			DependsOn: []string{"set-build-env"},
-		})
-		for i := range statements {
-			if statements[i].ID == packager.StatementPoetryInstall {
-				statements[i].DependsOn = append(statements[i].DependsOn, "install-poetry")
-			}
-		}
 	}
 
 	// 4. add static files to the base image
