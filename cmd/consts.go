@@ -12,5 +12,7 @@ const (
 	flagEntrypoint    = "entrypoint"
 	flagPlatform      = "platform"
 	flagInstallPoetry = "install-poetry"
+	flagInstallUV     = "install-uv"
 	flagPoetryVersion = "poetry-version"
+	flagUVVersion     = "uv-version"
 )

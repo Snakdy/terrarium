@@ -19,3 +19,16 @@ build-poetry:
 		--entrypoint /bin/bash harbor.dcas.dev/docker.io/library/python:3.12 \
 		-c "/app/terrarium build /samples/sample-poetry --install-poetry --entrypoint app.py --save /app/test.tar --v=10"
 	docker load < ./bin/test.tar
+
+.ONESHELL:
+build-uv:
+	mkdir -p bin/
+	go build -o bin/terrarium main.go
+
+	docker run \
+		-e TERRARIUM_DEFAULT_BASE_IMAGE=harbor.dcas.dev/docker.io/library/python:3.12 \
+		-v ./bin:/app \
+		-v ./samples:/samples \
+		--entrypoint /bin/bash harbor.dcas.dev/docker.io/library/python:3.12 \
+		-c "/app/terrarium build /samples/sample-uv --install-uv --entrypoint main.py --save /app/test.tar --v=10"
+	docker load < ./bin/test.tar

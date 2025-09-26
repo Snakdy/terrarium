@@ -27,8 +27,12 @@ func init() {
 	buildCmd.Flags().String(flagSave, "", "path to save the image as a tar archive")
 	buildCmd.Flags().String(flagEntrypoint, "", "path to the Python file that will be executed")
 	buildCmd.Flags().String(flagPlatform, "linux/amd64", "build platform")
+
 	buildCmd.Flags().Bool(flagInstallPoetry, false, "whether to 'pip install poetry' before trying to use Poetry.")
 	buildCmd.Flags().String(flagPoetryVersion, "", "if set, controls the version of Poetry installed")
+
+	buildCmd.Flags().Bool(flagInstallUV, false, "whether to 'pip install uv' before trying to use UV.")
+	buildCmd.Flags().String(flagUVVersion, "", "if set, controls the version of UV")
 
 	_ = buildCmd.MarkFlagRequired(flagEntrypoint)
 	_ = buildCmd.MarkFlagFilename(flagEntrypoint, ".py")
@@ -43,7 +47,9 @@ func buildExec(cmd *cobra.Command, args []string) error {
 	}
 	entrypoint, _ := cmd.Flags().GetString(flagEntrypoint)
 	installPoetry, _ := cmd.Flags().GetBool(flagInstallPoetry)
+	installUV, _ := cmd.Flags().GetBool(flagInstallUV)
 	poetryVersion, _ := cmd.Flags().GetString(flagPoetryVersion)
+	uvVersion, _ := cmd.Flags().GetString(flagUVVersion)
 
 	platform, _ := cmd.Flags().GetString(flagPlatform)
 	imgPlatform, err := v1.ParsePlatform(platform)
@@ -74,15 +80,24 @@ func buildExec(cmd *cobra.Command, args []string) error {
 				"POETRY_VIRTUALENVS_OPTIONS_ALWAYS_COPY":   "true",
 				"POETRY_VIRTUALENVS_CREATE":                "false",
 				"POETRY_CACHE_DIR":                         cacheDir,
+				"UV_PROJECT_ENVIRONMENT":                   "",
 			},
 			Statement: &pipelines.Env{},
 		},
 		{
-			ID: "poetry-export",
+			ID: packager.StatementPoetryInstall,
 			Options: map[string]any{
 				"cache-dir": cacheDir,
 			},
 			Statement: &packager.PoetryExport{},
+			DependsOn: []string{"set-build-env"},
+		},
+		{
+			ID: packager.StatementUVSync,
+			Options: map[string]any{
+				"cache-dir": cacheDir,
+			},
+			Statement: &packager.UVSync{},
 			DependsOn: []string{"set-build-env"},
 		},
 		{
@@ -92,7 +107,7 @@ func buildExec(cmd *cobra.Command, args []string) error {
 				"install-dir": pkgDir,
 			},
 			Statement: installStatement,
-			DependsOn: []string{"set-build-env", "poetry-export"},
+			DependsOn: []string{"set-build-env", packager.StatementPoetryInstall, packager.StatementUVSync},
 		},
 		{
 			ID: "copy-python-packages",
@@ -124,6 +139,28 @@ func buildExec(cmd *cobra.Command, args []string) error {
 		},
 	}
 
+	if installUV {
+		uvInstallArgs := []string{"install"}
+		if uvVersion != "" {
+			uvInstallArgs = append(uvInstallArgs, "uv==", uvVersion)
+		} else {
+			uvInstallArgs = append(uvInstallArgs, "uv")
+		}
+		statements = append(statements, pipelines.OrderedPipelineStatement{
+			ID: "install-uv",
+			Options: map[string]any{
+				"command": "pip",
+				"args":    uvInstallArgs,
+			},
+			Statement: &pipelines.Script{},
+			DependsOn: []string{"set-build-env"},
+		})
+		for i := range statements {
+			if statements[i].ID == packager.StatementUVSync {
+				statements[i].DependsOn = append(statements[i].DependsOn, "install-uv")
+			}
+		}
+	}
 	if installPoetry {
 		poetryInstallArgs := []string{"install"}
 		if poetryVersion != "" {
@@ -141,7 +178,7 @@ func buildExec(cmd *cobra.Command, args []string) error {
 			DependsOn: []string{"set-build-env"},
 		})
 		for i := range statements {
-			if statements[i].ID == "poetry-export" {
+			if statements[i].ID == packager.StatementPoetryInstall {
 				statements[i].DependsOn = append(statements[i].DependsOn, "install-poetry")
 			}
 		}

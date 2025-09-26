@@ -8,4 +8,5 @@ node_modules/
 .pip/
 bin/
 samples/sample-poetry/requirements.txt
+samples/sample-uv/requirements.txt
 tests/
