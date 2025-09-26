@@ -2,12 +2,13 @@ package packager
 
 import (
 	"context"
+	"os"
+	"os/exec"
+
 	cbev1 "github.com/Snakdy/container-build-engine/pkg/api/v1"
 	"github.com/Snakdy/container-build-engine/pkg/pipelines"
 	"github.com/Snakdy/container-build-engine/pkg/pipelines/utils"
 	"github.com/go-logr/logr"
-	"os"
-	"os/exec"
 )
 
 const StatementPipInstall = "pip-install"

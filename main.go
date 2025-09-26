@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/Snakdy/terrarium/cmd"
 	"time"
+
+	"github.com/Snakdy/terrarium/cmd"
 )
 
 var (

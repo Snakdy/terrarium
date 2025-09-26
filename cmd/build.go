@@ -1,16 +1,17 @@
 package cmd
 
 import (
-	"chainguard.dev/apko/pkg/apk/fs"
 	"fmt"
+	"os"
+	"path/filepath"
+
+	"chainguard.dev/apko/pkg/apk/fs"
 	"github.com/Snakdy/container-build-engine/pkg/builder"
 	"github.com/Snakdy/container-build-engine/pkg/containers"
 	"github.com/Snakdy/container-build-engine/pkg/pipelines"
 	"github.com/Snakdy/terrarium/internal/packager"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/spf13/cobra"
-	"os"
-	"path/filepath"
 )
 
 var buildCmd = &cobra.Command{
@@ -146,7 +147,7 @@ func buildExec(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// 4. add static files to base image
+	// 4. add static files to the base image
 	baseImage := os.Getenv(EnvBaseImage)
 	if baseImage == "" {
 		baseImage = "python:3.12"
