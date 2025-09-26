@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"strings"
 
 	cbev1 "github.com/Snakdy/container-build-engine/pkg/api/v1"
 	"github.com/Snakdy/container-build-engine/pkg/pipelines"
@@ -23,6 +24,17 @@ func (p *UVSync) Run(ctx *pipelines.BuildContext, _ ...cbev1.Options) (cbev1.Opt
 	log := logr.FromContextOrDiscard(ctx.Context)
 	log.V(7).Info("running statement uv export", "options", p.options)
 
+	args := []string{"uv", "export", "--frozen", "--no-build-isolation", "--format", "requirements.txt", "--native-tls", "--no-dev", "--output-file", "requirements.txt"}
+
+	cacheDir, err := cbev1.GetOptional[string](p.options, "cache-dir")
+	if err != nil {
+		return cbev1.Options{}, err
+	}
+
+	if cacheDir != "" {
+		args = append(args, "--cache-dir", cacheDir)
+	}
+
 	ok, err := p.Detect(ctx.Context, ctx.WorkingDirectory)
 	if err != nil {
 		return cbev1.Options{}, err
@@ -31,7 +43,7 @@ func (p *UVSync) Run(ctx *pipelines.BuildContext, _ ...cbev1.Options) (cbev1.Opt
 		return cbev1.Options{}, nil
 	}
 
-	cmd := exec.CommandContext(ctx.Context, commandSh, "-c", "uv export --frozen --no-build-isolation --format requirements.txt --native-tls --no-dev --output-file requirements.txt")
+	cmd := exec.CommandContext(ctx.Context, commandSh, "-c", strings.Join(args, " "))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Dir = ctx.WorkingDirectory
