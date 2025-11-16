@@ -2,12 +2,12 @@ package pipinstall
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
+	"strings"
 
 	cbev1 "github.com/Snakdy/container-build-engine/pkg/api/v1"
 	"github.com/Snakdy/container-build-engine/pkg/pipelines"
 	"github.com/Snakdy/container-build-engine/pkg/pipelines/utils"
+	"github.com/Snakdy/terrarium/internal/runtime"
 	"github.com/go-logr/logr"
 )
 
@@ -19,6 +19,10 @@ func (s *Statement) Run(ctx *pipelines.BuildContext, _ ...cbev1.Options) (cbev1.
 	if err != nil {
 		return cbev1.Options{}, err
 	}
+	uninstall, err := cbev1.GetOptional[bool](s.options, "uninstall")
+	if err != nil {
+		return cbev1.Options{}, err
+	}
 	enabled, err := cbev1.GetRequired[bool](s.options, "enabled")
 	if err != nil {
 		return cbev1.Options{}, err
@@ -27,11 +31,17 @@ func (s *Statement) Run(ctx *pipelines.BuildContext, _ ...cbev1.Options) (cbev1.
 		return cbev1.Options{}, nil
 	}
 
-	cmd := exec.CommandContext(ctx.Context, "/bin/sh", "-c", fmt.Sprintf(`pip install "%s"`, name))
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Dir = ctx.WorkingDirectory
-	err = cmd.Run()
+	names := strings.Split(name, " ")
+	for i := range names {
+		names[i] = fmt.Sprintf(`"%s"`, names[i])
+	}
+
+	command := "install"
+	if uninstall {
+		command = "uninstall --yes"
+	}
+
+	err = runtime.Run(ctx.Context, ctx.WorkingDirectory, "/bin/sh", fmt.Sprintf(`pip %s --no-input --disable-pip-version-check %s`, command, strings.Join(names, " ")))
 	if err != nil {
 		log.Error(err, "script execution failed")
 		return cbev1.Options{}, err

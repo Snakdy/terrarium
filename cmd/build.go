@@ -106,6 +106,16 @@ func buildExec(cmd *cobra.Command, args []string) error {
 			DependsOn: []string{"set-build-env"},
 		},
 		{
+			ID: pipinstall.Name + "-uninstall",
+			Options: map[string]any{
+				"enabled":   installTool != "",
+				"name":      installTool,
+				"uninstall": true,
+			},
+			Statement: &pipinstall.Statement{},
+			DependsOn: []string{"set-build-env", pipinstall.Name, packager.StatementPoetryInstall},
+		},
+		{
 			ID: packager.StatementPoetryInstall,
 			Options: map[string]any{
 				"cache-dir": cacheDir,

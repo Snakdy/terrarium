@@ -17,7 +17,7 @@ build-poetry:
 		-v ./bin:/app \
 		-v ./samples:/samples \
 		--entrypoint /bin/bash harbor.dcas.dev/docker.io/library/python:3.12 \
-		-c "/app/terrarium build /samples/sample-poetry --install-poetry --entrypoint app.py --save /app/test.tar --v=10"
+		-c "/app/terrarium build /samples/sample-poetry --install-tool=\"poetry<2.0.0 poetry-plugin-pypi-mirror poetry-plugin-export\" --entrypoint app.py --save /app/test.tar --v=10"
 	docker load < ./bin/test.tar
 
 .ONESHELL:

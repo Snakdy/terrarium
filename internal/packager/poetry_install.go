@@ -2,12 +2,11 @@ package packager
 
 import (
 	"context"
-	"os"
-	"os/exec"
 
 	cbev1 "github.com/Snakdy/container-build-engine/pkg/api/v1"
 	"github.com/Snakdy/container-build-engine/pkg/pipelines"
 	"github.com/Snakdy/container-build-engine/pkg/pipelines/utils"
+	"github.com/Snakdy/terrarium/internal/runtime"
 	"github.com/go-logr/logr"
 )
 
@@ -32,11 +31,7 @@ func (p *PoetryExport) Run(ctx *pipelines.BuildContext, _ ...cbev1.Options) (cbe
 		return cbev1.Options{}, nil
 	}
 
-	cmd := exec.CommandContext(ctx.Context, commandSh, "-c", "poetry export --without-urls --format requirements.txt > requirements.txt")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Dir = ctx.WorkingDirectory
-	err = cmd.Run()
+	err = runtime.Run(ctx.Context, ctx.WorkingDirectory, commandSh, "poetry export --without-urls --format requirements.txt > requirements.txt")
 	if err != nil {
 		log.Error(err, "script execution failed")
 		return cbev1.Options{}, err

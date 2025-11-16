@@ -2,13 +2,12 @@ package packager
 
 import (
 	"context"
-	"os"
-	"os/exec"
 	"strings"
 
 	cbev1 "github.com/Snakdy/container-build-engine/pkg/api/v1"
 	"github.com/Snakdy/container-build-engine/pkg/pipelines"
 	"github.com/Snakdy/container-build-engine/pkg/pipelines/utils"
+	"github.com/Snakdy/terrarium/internal/runtime"
 	"github.com/go-logr/logr"
 )
 
@@ -43,11 +42,7 @@ func (p *UVSync) Run(ctx *pipelines.BuildContext, _ ...cbev1.Options) (cbev1.Opt
 		return cbev1.Options{}, nil
 	}
 
-	cmd := exec.CommandContext(ctx.Context, commandSh, "-c", strings.Join(args, " "))
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Dir = ctx.WorkingDirectory
-	err = cmd.Run()
+	err = runtime.Run(ctx.Context, ctx.WorkingDirectory, commandSh, strings.Join(args, " "))
 	if err != nil {
 		log.Error(err, "script execution failed")
 		return cbev1.Options{}, err
