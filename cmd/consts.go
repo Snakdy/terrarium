@@ -14,4 +14,5 @@ const (
 	flagInstallPoetry = "install-poetry"
 	flagPoetryVersion = "poetry-version"
 	flagInstallTool   = "install-tool"
+	flagIgnore        = "ignore"
 )

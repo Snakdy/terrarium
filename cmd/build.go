@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"chainguard.dev/apko/pkg/apk/fs"
 	"github.com/Snakdy/container-build-engine/pkg/builder"
@@ -28,12 +29,13 @@ func init() {
 	buildCmd.Flags().StringSliceP(flagTag, "t", []string{"latest"}, "tags to push")
 	buildCmd.Flags().String(flagSave, "", "path to save the image as a tar archive")
 	buildCmd.Flags().String(flagEntrypoint, "", "path to the Python file that will be executed")
-	buildCmd.Flags().String(flagPlatform, "linux/amd64", "build platform")
+	buildCmd.Flags().String(flagPlatform, "", "build platform")
 
 	buildCmd.Flags().Bool(flagInstallPoetry, false, "(deprecated) whether to 'pip install poetry' before trying to use Poetry.")
 	buildCmd.Flags().String(flagPoetryVersion, "", "if set, controls the version of Poetry installed")
 
 	buildCmd.Flags().String(flagInstallTool, "", "name of the build tool to install. Can include a version (e.g., 'poetry<2.0.0')")
+	buildCmd.Flags().StringSlice(flagIgnore, []string{".git", ".venv", "__pycache__"}, "comma-separated list of files or directories to ignore (note: $TERRARIUM_CACHE and .cache will always be ignored)")
 
 	_ = buildCmd.MarkFlagRequired(flagEntrypoint)
 	_ = buildCmd.MarkFlagFilename(flagEntrypoint, ".py")
@@ -50,6 +52,7 @@ func buildExec(cmd *cobra.Command, args []string) error {
 	entrypoint, _ := cmd.Flags().GetString(flagEntrypoint)
 	installPoetry, _ := cmd.Flags().GetBool(flagInstallPoetry)
 	poetryVersion, _ := cmd.Flags().GetString(flagPoetryVersion)
+	ignore, _ := cmd.Flags().GetStringSlice(flagIgnore)
 
 	installTool, _ := cmd.Flags().GetString(flagInstallTool)
 	// if the --install-poetry command has been
@@ -64,10 +67,17 @@ func buildExec(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// if the platform exists, then we should
+	// treat it like a multi-arch build
+	var platformUnset bool
 	platform, _ := cmd.Flags().GetString(flagPlatform)
+	if platform == "" {
+		platformUnset = true
+		platform = fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
+	}
 	imgPlatform, err := v1.ParsePlatform(platform)
 	if err != nil {
-		return err
+		return fmt.Errorf("parsing platform '%s': %w", platform, err)
 	}
 
 	installDir, err := os.MkdirTemp("", "pip-install-*")
@@ -162,8 +172,9 @@ func buildExec(cmd *cobra.Command, args []string) error {
 		{
 			ID: "copy-working-dir",
 			Options: map[string]any{
-				"src": workingDir,
-				"dst": filepath.Join("${HOME}", "app"),
+				"src":    workingDir,
+				"dst":    filepath.Join("${HOME}", "app"),
+				"ignore": append(ignore, cacheDir),
 			},
 			Statement: &pipelines.Dir{},
 			DependsOn: []string{"set-run-env", "copy-python-packages"},
@@ -184,7 +195,8 @@ func buildExec(cmd *cobra.Command, args []string) error {
 		Metadata: builder.MetadataOptions{
 			CreatedBy: "terrarium",
 		},
-		FS: fs.NewMemFS(),
+		GenerateIndex: !platformUnset,
+		FS:            fs.NewMemFS(),
 	})
 	if err != nil {
 		return err
@@ -195,7 +207,11 @@ func buildExec(cmd *cobra.Command, args []string) error {
 	}
 
 	if localPath != "" {
-		return containers.Save(cmd.Context(), img, "image", localPath)
+		image, ok := img.(v1.Image)
+		if !ok {
+			return fmt.Errorf("cannot save %T to a local file", img)
+		}
+		return containers.Save(cmd.Context(), image, "image", localPath)
 	}
 	tags, _ := cmd.Flags().GetStringSlice(flagTag)
 	for _, tag := range tags {
